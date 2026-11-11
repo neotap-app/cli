@@ -28,9 +28,6 @@ jobs:
           registry-url: https://registry.npmjs.org
 
       - name: Install dependencies
-        env:
-          # lockfile 里的 tarball 地址来自本地私有镜像，CI 统一替换为 npmjs。
-          NPM_CONFIG_REPLACE_REGISTRY_HOST: always
         run: npm ci
 
       - name: Verify tag matches package version
