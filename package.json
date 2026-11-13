@@ -1,7 +1,7 @@
 {
   "name": "@neotap.app/cli",
   "version": "0.1.0",
-  "description": "NeoTap creator CLI - authorize, inspect OpenAPI docs, and run AI generation tasks from the terminal.",
+  "description": "NeoTap CLI tool for creators - Images, videos, audio , 3D assets AI Generator and library. Find trends, create and publish creative contents.",
   "type": "module",
   "bin": {
     "neotap": "./dist/index.js"
