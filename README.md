@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/neotap-cli-logo-banner.png" alt="NeoTap CLI" width="480">
+  <img src="assets/neotap-cli-logo-banner.png" alt="NeoTap CLI" width="300">
 </p>
 
 # @neotap.app/cli
