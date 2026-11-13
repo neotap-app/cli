@@ -9,7 +9,7 @@ import { VERSION } from "./lib/version.js"
 
 const program = new Command()
   .name("neotap")
-  .description("NeoTap creator CLI: authorize, inspect OpenAPI docs, and run AI generation tasks.")
+  .description("NeoTap CLI: Terminal tool for NeoTap Creators - Images, videos, audio , 3D assets AI Generator and library. Find trends, create and publish posts")
   .version(VERSION)
   .option("--api-url <url>", "NeoTap API base URL (default: https://api.neotap.app)")
   .option("--web-url <url>", "NeoTap web base URL (default: https://neotap.app)")
