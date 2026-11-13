@@ -12,7 +12,6 @@ export function printTask(task: TaskDetail): void {
     ["Created", formatDate(task.createdAt)],
     ["Updated", formatDate(task.updatedAt)],
     ["Finished", formatDate(task.finishedAt)],
-    ["Studio project", task.studioProjectId ?? "-"],
   ]
   if (task.error) {
     rows.push(["Error", task.error])
