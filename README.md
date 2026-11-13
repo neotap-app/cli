@@ -1,3 +1,5 @@
+![NeoTap CLI](assets/neotap-cli-logo-banner.png)
+
 # @neotap.app/cli
 
 NeoTap CLI: Terminal tool for neotap.app creators: 
