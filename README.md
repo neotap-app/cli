@@ -5,7 +5,6 @@
 # @neotap.app/cli
 
 <p align="center">
-  <a href="https://github.com/neotap-app/cli/releases"><img src="https://img.shields.io/github/v/release/neotap-app/cli?label=release" alt="release"></a>
   <a href="https://www.npmjs.com/package/@neotap.app/cli"><img src="https://img.shields.io/npm/v/@neotap.app%2Fcli?label=npm" alt="npm"></a>
   <a href="LICENSE"><img src="https://img.shields.io/github/license/neotap-app/cli?label=license" alt="license"></a>
 </p>
