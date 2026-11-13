@@ -79,7 +79,6 @@ async function loginWithBrowser(options: AuthOptions): Promise<void> {
 
   console.log("Authorize NeoTap CLI in your browser:")
   console.log(`  ${start.verificationUrl}`)
-  console.log(`\nAuthorization code: ${start.userCode}`)
   console.log(`Waiting for approval (expires in ${Math.round(start.expiresIn / 60)} minutes)...`)
 
   tryOpenBrowser(start.verificationUrl)
