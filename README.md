@@ -1,4 +1,6 @@
-![NeoTap CLI](assets/neotap-cli-logo-banner.png)
+<p align="center">
+  <img src="assets/neotap-cli-logo-banner.png" alt="NeoTap CLI" width="480">
+</p>
 
 # @neotap.app/cli
 
