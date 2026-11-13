@@ -2,7 +2,7 @@
 
 # @neotap.app/cli
 
-NeoTap CLI: Terminal tool for neotap.app creators: 
+NeoTap CLI: Terminal tool for [neotap.app](https://neotap.app) creators: 
 
 - Generate images, videos, 3D assets , audio and etc. with NeoTap Studio AI
 
