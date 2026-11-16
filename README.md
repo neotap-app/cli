@@ -23,10 +23,12 @@ NeoTap CLI: Terminal tool for [neotap.app](https://neotap.app) creators:
 
 ```bash
 npx @neotap.app/cli auth
-npx @neotap.app/cli task --type sprites-1 --help
-npx @neotap.app/cli task submit --type sprites-1 --input '{"sprites":[{"name":"sunflower.png","prompt":"a cartoon sunflower"}]}'
-npx @neotap.app/cli task list --status running
-npx @neotap.app/cli task get --id <taskId>
+npx @neotap.app/cli model list
+npx @neotap.app/cli model get sprites-1
+npx @neotap.app/cli model catalog list
+npx @neotap.app/cli task create sprites-1 --input '{"sprites":[{"name":"sunflower.png","prompt":"a cartoon sunflower"}]}'
+npx @neotap.app/cli task list --model sprites-1 --status running
+npx @neotap.app/cli task get <taskId>
 ```
 
 Add `--json` to any command for machine-readable output.

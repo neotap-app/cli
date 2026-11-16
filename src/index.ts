@@ -2,7 +2,8 @@
 
 import { Command, CommanderError } from "commander"
 import { registerAuthCommand } from "./commands/auth.js"
-import { registerTaskCommand, tryPrintTaskTypeHelp } from "./commands/task.js"
+import { registerModelCommand } from "./commands/model.js"
+import { registerTaskCommand } from "./commands/task.js"
 import { normalizeArgv } from "./lib/argv.js"
 import { CliError } from "./lib/errors.js"
 import { VERSION } from "./lib/version.js"
@@ -19,13 +20,11 @@ const program = new Command()
   .exitOverride()
 
 registerAuthCommand(program)
+registerModelCommand(program)
 registerTaskCommand(program)
 
 async function main(): Promise<void> {
   try {
-    if (await tryPrintTaskTypeHelp(process.argv.slice(2))) {
-      return
-    }
     await program.parseAsync(normalizeArgv(process.argv))
   } catch (error) {
     if (error instanceof CommanderError) {

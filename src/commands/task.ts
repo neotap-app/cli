@@ -1,90 +1,54 @@
 import { readFile } from "node:fs/promises"
 import type { Command } from "commander"
-import { normalizeArgv } from "../lib/argv.js"
-import { apiClient, createContext, publicClient } from "../lib/context.js"
-import { UsageError } from "../lib/errors.js"
-import { printJson, printTask, printTaskDoc, printTaskDocList, printTaskTable } from "../lib/output.js"
+import { apiClient, createContext } from "../lib/context.js"
 import type { CommonOptions } from "../lib/env.js"
-import type {
-  OpenapiDocs,
-  OpenapiTaskDoc,
-  SubmitTaskResult,
-  TaskDetail,
-  TaskListResult,
-} from "../lib/types.js"
+import { UsageError } from "../lib/errors.js"
+import { printJson, printTask, printTaskTable } from "../lib/output.js"
+import type { CreateTaskResult, TaskDetail, TaskListResult } from "../lib/types.js"
 import { addCommonOptions } from "./options.js"
 
-type TaskOptions = CommonOptions & {
-  type?: string
-}
-
-type SubmitOptions = CommonOptions & {
-  type?: string
+type CreateOptions = CommonOptions & {
   input?: string
   inputFile?: string
   studioProjectId?: string
 }
 
 type ListOptions = CommonOptions & {
-  type?: string
+  model?: string
   status?: string[]
   apikeyId?: string
+  studioProjectId?: string
+  createdAfter?: string
+  createdBefore?: string
   cursor?: string
   pageSize?: string
 }
 
-type GetOptions = CommonOptions & {
-  id?: string
-}
+type GetOptions = CommonOptions
 
 export function registerTaskCommand(program: Command): void {
-  const task = addCommonOptions(
-    program
-      .command("task")
-      .description("Inspect and run NeoTap OpenAPI tasks")
-      .option("--type <type>", "show the input schema for a task type"),
-  )
+  const task = program.command("task").description("Create and inspect NeoTap OpenAPI tasks")
 
-  task.action(async (options: TaskOptions, cmd: Command) => {
-    const merged = cmd.optsWithGlobals() as TaskOptions
-    const context = await createContext(merged)
-    const client = publicClient(context)
-
-    if (merged.type) {
-      const doc = await client.get<OpenapiTaskDoc>(`/openapi/docs/${encodeURIComponent(merged.type)}`)
-      printTaskDoc(doc)
-      return
-    }
-
-    console.log(cmd.helpInformation())
-    try {
-      const docs = await client.get<OpenapiDocs>("/openapi/docs")
-      printTaskDocList(docs.tasks)
-    } catch {
-      console.log("Run 'neotap task --type <type> --help' to view task input schemas once the API is reachable.")
-    }
-  })
-
-  registerSubmit(task)
+  registerCreate(task)
   registerList(task)
   registerGet(task)
 }
 
-function registerSubmit(task: Command): void {
+function registerCreate(task: Command): void {
   const command = addCommonOptions(
     task
-      .command("submit")
-      .description("Submit a new OpenAPI task")
-      .option("--type <type>", "task type, e.g. sprites-1")
+      .command("create")
+      .description("Create a task for a model")
+      .argument("<model-id>", "model id, e.g. sprites-1")
       .option("--input <json>", "task input as a JSON string")
       .option("--input-file <path>", "read task input JSON from a file")
       .option("--studio-project-id <id>", "optional studio project id for billing/audit"),
   )
 
-  command.action(async (options: SubmitOptions, cmd: Command) => {
-    const merged = cmd.optsWithGlobals() as SubmitOptions
-    if (!merged.type) {
-      throw new UsageError("Missing required option --type <type>.")
+  command.action(async (modelId: string, options: CreateOptions, cmd: Command) => {
+    const merged = cmd.optsWithGlobals() as CreateOptions
+    if (!modelId) {
+      throw new UsageError("Missing required argument <model-id>.")
     }
     if ((merged.input && merged.inputFile) || (!merged.input && !merged.inputFile)) {
       throw new UsageError("Provide exactly one of --input <json> or --input-file <path>.")
@@ -95,9 +59,9 @@ function registerSubmit(task: Command): void {
       : parseJson(merged.input!, "--input")
 
     const context = await createContext(merged)
-    const result = await apiClient(context).post<SubmitTaskResult>("/openapi/tasks", {
+    const result = await apiClient(context).post<CreateTaskResult>("/openapi/tasks", {
       body: {
-        type: merged.type,
+        modelId,
         input,
         ...(merged.studioProjectId ? { studioProjectId: merged.studioProjectId } : {}),
       },
@@ -107,8 +71,8 @@ function registerSubmit(task: Command): void {
       printJson(result)
       return
     }
-    console.log(`Submitted task ${result.id} (${result.status}).`)
-    console.log(`Poll status: neotap task get --id ${result.id}`)
+    console.log(`Created task ${result.id} (${result.status}).`)
+    console.log(`Poll status: neotap task get ${result.id}`)
   })
 }
 
@@ -119,9 +83,12 @@ function registerList(task: Command): void {
     task
       .command("list")
       .description("List OpenAPI tasks")
-      .option("--type <type>", "filter by task type")
+      .option("--model <model-id>", "filter by model id")
       .option("--status <status>", "filter by status (repeatable or comma-separated)", collect, [])
       .option("--apikey-id <id>", "filter by API key id")
+      .option("--studio-project-id <id>", "filter by studio project id")
+      .option("--created-after <iso>", "only tasks created at or after this ISO 8601 time")
+      .option("--created-before <iso>", "only tasks created before this ISO 8601 time")
       .option("--cursor <cursor>", "pagination cursor (last task id from the previous page)")
       .option("--page-size <number>", "page size, 1-20 (default 10)"),
   )
@@ -136,9 +103,12 @@ function registerList(task: Command): void {
     const context = await createContext(merged)
     const result = await apiClient(context).get<TaskListResult>("/openapi/tasks", {
       query: {
-        type: merged.type,
+        modelId: merged.model,
         status: statuses.length > 0 ? statuses : undefined,
         apiKeyId: merged.apikeyId,
+        studioProjectId: merged.studioProjectId,
+        createdAfter: merged.createdAfter,
+        createdBefore: merged.createdBefore,
         cursor: merged.cursor,
         pageSize: merged.pageSize,
       },
@@ -158,16 +128,16 @@ function registerList(task: Command): void {
 
 function registerGet(task: Command): void {
   const command = addCommonOptions(
-    task.command("get").description("Get a single OpenAPI task by id").option("--id <id>", "task id"),
+    task.command("get").description("Get a single OpenAPI task by id").argument("<task-id>", "task id"),
   )
 
-  command.action(async (options: GetOptions, cmd: Command) => {
+  command.action(async (taskId: string, options: GetOptions, cmd: Command) => {
     const merged = cmd.optsWithGlobals() as GetOptions
-    if (!merged.id) {
-      throw new UsageError("Missing required option --id <id>.")
+    if (!taskId) {
+      throw new UsageError("Missing required argument <task-id>.")
     }
     const context = await createContext(merged)
-    const result = await apiClient(context).get<TaskDetail>(`/openapi/tasks/${encodeURIComponent(merged.id)}`)
+    const result = await apiClient(context).get<TaskDetail>(`/openapi/tasks/${encodeURIComponent(taskId)}`)
 
     if (merged.json) {
       printJson(result)
@@ -175,52 +145,6 @@ function registerGet(task: Command): void {
     }
     printTask(result)
   })
-}
-
-const TASK_ACTIONS = new Set(["submit", "list", "get"])
-
-// 在 commander 解析前拦截 `task --type <type> --help`，展示该类型的入参 schema。
-// `task submit --help` 等子命令帮助仍交给 commander 处理。
-export async function tryPrintTaskTypeHelp(argv: string[]): Promise<boolean> {
-  const normalized = normalizeArgv(argv)
-  const taskIndex = normalized.indexOf("task")
-  if (taskIndex === -1) {
-    return false
-  }
-
-  const tokens = normalized.slice(taskIndex + 1)
-  const hasHelp = tokens.includes("--help") || tokens.includes("-h")
-  const type = findOptionValue(tokens, "--type")
-  if (!hasHelp || !type) {
-    return false
-  }
-
-  const actionIndex = tokens.findIndex((token) => TASK_ACTIONS.has(token))
-  if (actionIndex !== -1 && actionIndex < tokens.indexOf("--type")) {
-    return false
-  }
-
-  const context = await createContext({
-    apiUrl: findOptionValue(normalized, "--api-url"),
-    webUrl: findOptionValue(normalized, "--web-url"),
-    sandbox: normalized.includes("--sandbox"),
-  })
-  const doc = await publicClient(context).get<OpenapiTaskDoc>(`/openapi/docs/${encodeURIComponent(type)}`)
-  printTaskDoc(doc)
-  return true
-}
-
-function findOptionValue(argv: string[], flag: string): string | undefined {
-  for (let index = 0; index < argv.length; index += 1) {
-    const value = argv[index]
-    if (value === flag) {
-      return argv[index + 1]
-    }
-    if (value.startsWith(`${flag}=`)) {
-      return value.slice(flag.length + 1)
-    }
-  }
-  return undefined
 }
 
 function parseJson(raw: string, source: string): unknown {

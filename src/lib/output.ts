@@ -1,4 +1,4 @@
-import type { OpenapiTaskDoc, TaskDetail } from "./types.js"
+import type { ModelDetail, ModelListResult, ModelSummary, OpenapiCatalog, TaskDetail } from "./types.js"
 
 export function printJson(value: unknown): void {
   console.log(JSON.stringify(value, null, 2))
@@ -7,7 +7,7 @@ export function printJson(value: unknown): void {
 export function printTask(task: TaskDetail): void {
   const rows: Array<[string, string]> = [
     ["ID", task.id],
-    ["Type", task.type],
+    ["Model", task.modelId],
     ["Status", task.status],
     ["Created", formatDate(task.createdAt)],
     ["Updated", formatDate(task.updatedAt)],
@@ -33,14 +33,83 @@ export function printTaskTable(tasks: TaskDetail[]): void {
     return
   }
 
-  const columns = ["ID", "TYPE", "STATUS", "CREATED", "UPDATED"] as const
+  const columns = ["ID", "MODEL", "STATUS", "CREATED", "UPDATED"] as const
   const rows = tasks.map((task) => [
     task.id,
-    task.type,
+    task.modelId,
     task.status,
     formatDate(task.createdAt),
     formatDate(task.updatedAt),
   ])
+  printTable(columns, rows)
+}
+
+export function printModelList(result: ModelListResult): void {
+  if (result.list.length === 0) {
+    console.log("No models found.")
+    return
+  }
+
+  const columns = ["ID", "NAME", "CATALOGS", "PROVIDER", "PRICE"] as const
+  const rows = result.list.map((model) => [
+    model.id,
+    model.name,
+    formatCatalogs(model.catalogs),
+    model.providerName || "-",
+    model.priceDescription,
+  ])
+  printTable(columns, rows)
+  console.log(`\nPage ${result.page}, ${result.total} model(s) total, page size ${result.pageSize}.`)
+}
+
+export function printModel(model: ModelDetail): void {
+  console.log(`${model.id} - ${model.name}`)
+  if (model.description) {
+    console.log(model.description)
+  }
+  console.log(`\nCatalogs: ${formatCatalogs(model.catalogs) || "-"}`)
+  console.log(`Provider: ${model.providerName || "-"}`)
+  console.log(`Price: ${model.priceDescription}`)
+
+  console.log("\nInput schema:")
+  console.log(JSON.stringify(model.inputSchema, null, 2))
+  if (model.inputExample !== undefined) {
+    console.log("\nExample input:")
+    console.log(JSON.stringify(model.inputExample, null, 2))
+  }
+
+  console.log("\nOutput schema:")
+  console.log(JSON.stringify(model.outputSchema, null, 2))
+  if (model.outputExample !== undefined) {
+    console.log("\nExample output:")
+    console.log(JSON.stringify(model.outputExample, null, 2))
+  }
+  if (model.outputDescription) {
+    console.log("\nOutput description:")
+    console.log(model.outputDescription)
+  }
+
+  const example = JSON.stringify(model.inputExample ?? {})
+  console.log("\nCreate task:")
+  console.log(`  neotap task create ${model.id} --input '${example}'`)
+}
+
+export function printCatalogList(catalogs: OpenapiCatalog[]): void {
+  if (catalogs.length === 0) {
+    console.log("No catalogs found.")
+    return
+  }
+  const width = Math.max(...catalogs.map((catalog) => catalog.id.length))
+  for (const catalog of catalogs) {
+    console.log(`${catalog.id.padEnd(width)}  ${catalog.name}`)
+  }
+}
+
+function formatCatalogs(catalogs: OpenapiCatalog[]): string {
+  return catalogs.map((catalog) => catalog.name || catalog.id).join(", ")
+}
+
+function printTable(columns: readonly string[], rows: string[][]): void {
   const widths = columns.map((column, index) =>
     Math.max(column.length, ...rows.map((row) => row[index]?.length ?? 0)),
   )
@@ -53,41 +122,6 @@ export function printTaskTable(tasks: TaskDetail[]): void {
   for (const row of rows) {
     console.log(render(row))
   }
-}
-
-export function printTaskDoc(doc: OpenapiTaskDoc): void {
-  console.log(`${doc.type} - ${doc.title}`)
-  if (doc.description) {
-    console.log(doc.description)
-  }
-  console.log("\nInput schema:")
-  console.log(JSON.stringify(doc.inputSchema, null, 2))
-
-  if (doc.inputExample !== undefined) {
-    console.log("\nExample input:")
-    console.log(JSON.stringify(doc.inputExample, null, 2))
-  }
-  if (doc.outputDescription) {
-    console.log("\nOutput:")
-    console.log(doc.outputDescription)
-  }
-  console.log(`\nChargeable: ${doc.chargeable ? "yes" : "no"}`)
-
-  const example = JSON.stringify(doc.inputExample ?? {})
-  console.log("\nSubmit:")
-  console.log(`  neotap task submit --type ${doc.type} --input '${example}'`)
-}
-
-export function printTaskDocList(docs: OpenapiTaskDoc[]): void {
-  if (docs.length === 0) {
-    console.log("No OpenAPI task types are currently available.")
-    return
-  }
-  console.log("Available task types:")
-  for (const doc of docs) {
-    console.log(`  ${doc.type.padEnd(20)} ${doc.title}`)
-  }
-  console.log("\nRun 'neotap task --type <type> --help' for the input schema.")
 }
 
 export function formatDate(value: string | Date | undefined): string {
