@@ -1,4 +1,12 @@
-import type { ModelDetail, ModelListResult, ModelSummary, OpenapiCatalog, TaskDetail } from "./types.js"
+import type {
+  ModelDetail,
+  ModelListResult,
+  OpenapiCatalog,
+  OpenapiTargetDetail,
+  OpenapiTargetListResult,
+  TaskDetail,
+  WorkflowListResult,
+} from "./types.js"
 
 export function printJson(value: unknown): void {
   console.log(JSON.stringify(value, null, 2))
@@ -7,7 +15,8 @@ export function printJson(value: unknown): void {
 export function printTask(task: TaskDetail): void {
   const rows: Array<[string, string]> = [
     ["ID", task.id],
-    ["Model", task.modelId],
+    ["Kind", task.targetKind],
+    ["Target", task.targetId],
     ["Status", task.status],
     ["Created", formatDate(task.createdAt)],
     ["Updated", formatDate(task.updatedAt)],
@@ -33,10 +42,11 @@ export function printTaskTable(tasks: TaskDetail[]): void {
     return
   }
 
-  const columns = ["ID", "MODEL", "STATUS", "CREATED", "UPDATED"] as const
+  const columns = ["ID", "KIND", "TARGET", "STATUS", "CREATED", "UPDATED"] as const
   const rows = tasks.map((task) => [
     task.id,
-    task.modelId,
+    task.targetKind,
+    task.targetId,
     task.status,
     formatDate(task.createdAt),
     formatDate(task.updatedAt),
@@ -45,24 +55,40 @@ export function printTaskTable(tasks: TaskDetail[]): void {
 }
 
 export function printModelList(result: ModelListResult): void {
+  printTargetList(result, "model")
+}
+
+export function printWorkflowList(result: WorkflowListResult): void {
+  printTargetList(result, "workflow")
+}
+
+function printTargetList(result: OpenapiTargetListResult, kind: "model" | "workflow"): void {
   if (result.list.length === 0) {
-    console.log("No models found.")
+    console.log(`No ${kind}s found.`)
     return
   }
 
   const columns = ["ID", "NAME", "CATALOGS", "PROVIDER", "PRICE"] as const
-  const rows = result.list.map((model) => [
-    model.id,
-    model.name,
-    formatCatalogs(model.catalogs),
-    model.providerName || "-",
-    model.priceDescription,
+  const rows = result.list.map((target) => [
+    target.id,
+    target.name,
+    formatCatalogs(target.catalogs),
+    target.providerName || "-",
+    target.priceDescription,
   ])
   printTable(columns, rows)
-  console.log(`\nPage ${result.page}, ${result.total} model(s) total, page size ${result.pageSize}.`)
+  console.log(`\nPage ${result.page}, ${result.total} ${kind}(s) total, page size ${result.pageSize}.`)
 }
 
 export function printModel(model: ModelDetail): void {
+  printTarget(model)
+}
+
+export function printWorkflow(workflow: OpenapiTargetDetail): void {
+  printTarget(workflow)
+}
+
+function printTarget(model: OpenapiTargetDetail): void {
   console.log(`${model.id} - ${model.name}`)
   if (model.description) {
     console.log(model.description)
@@ -83,10 +109,6 @@ export function printModel(model: ModelDetail): void {
   if (model.outputExample !== undefined) {
     console.log("\nExample output:")
     console.log(JSON.stringify(model.outputExample, null, 2))
-  }
-  if (model.outputDescription) {
-    console.log("\nOutput description:")
-    console.log(model.outputDescription)
   }
 
   const example = JSON.stringify(model.inputExample ?? {})

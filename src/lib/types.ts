@@ -1,11 +1,12 @@
 export type TaskStatus = "pending" | "running" | "succeeded" | "failed" | "canceled"
+export type TargetKind = "model" | "workflow"
 
 export type OpenapiCatalog = {
   id: string
   name: string
 }
 
-export type ModelSummary = {
+export type OpenapiTargetSummary = {
   id: string
   name: string
   description: string
@@ -14,20 +15,26 @@ export type ModelSummary = {
   priceDescription: string
 }
 
-export type ModelDetail = ModelSummary & {
+export type OpenapiTargetDetail = OpenapiTargetSummary & {
   inputSchema: Record<string, unknown>
   inputExample?: unknown
   outputSchema: Record<string, unknown>
   outputExample?: unknown
-  outputDescription?: string
 }
 
-export type ModelListResult = {
-  list: ModelSummary[]
+export type OpenapiTargetListResult = {
+  list: OpenapiTargetSummary[]
   total: number
   page: number
   pageSize: number
 }
+
+export type ModelSummary = OpenapiTargetSummary
+export type ModelDetail = OpenapiTargetDetail
+export type ModelListResult = OpenapiTargetListResult
+export type WorkflowSummary = OpenapiTargetSummary
+export type WorkflowDetail = OpenapiTargetDetail
+export type WorkflowListResult = OpenapiTargetListResult
 
 export type CatalogListResult = {
   list: OpenapiCatalog[]
@@ -35,7 +42,8 @@ export type CatalogListResult = {
 
 export type TaskDetail = {
   id: string
-  modelId: string
+  targetKind: TargetKind
+  targetId: string
   status: TaskStatus
   apiKeyId?: string
   studioProjectId?: string
@@ -54,6 +62,8 @@ export type TaskListResult = {
 export type CreateTaskResult = {
   id: string
   status: TaskStatus
+  targetKind: TargetKind
+  targetId: string
 }
 
 export type CliAuthStartResult = {

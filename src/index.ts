@@ -4,23 +4,43 @@ import { Command, CommanderError } from "commander"
 import { registerAuthCommand } from "./commands/auth.js"
 import { registerModelCommand } from "./commands/model.js"
 import { registerTaskCommand } from "./commands/task.js"
+import { registerWorkflowCommand } from "./commands/workflow.js"
 import { normalizeArgv } from "./lib/argv.js"
 import { CliError } from "./lib/errors.js"
 import { VERSION } from "./lib/version.js"
 
 const program = new Command()
   .name("neotap")
-  .description("NeoTap CLI: CLI tool for NeoTap Creators - Images, videos, audio , 3D assets AI Generator and library. Find trends, create and publish creative contents")
+  .description(
+    "NeoTap CLI for creators: discover models/workflows, run AI generation tasks, and manage images, videos, audio and 3D assets.",
+  )
   .version(VERSION)
   .option("--api-url <url>", "NeoTap API base URL (default: https://api.neotap.app)")
   .option("--web-url <url>", "NeoTap web base URL (default: https://neotap.app)")
   .option("--json", "print machine-readable JSON output")
   .option("--sandbox", "Studio sandbox mode: do not send Authorization headers")
+  .addHelpText(
+    "after",
+    `
+Model, workflow and task commands:
+  model      Discover atomic generation models (list, get, catalog list).
+  workflow   Discover multi-step generation workflows (list, get).
+  task       Submit and track asynchronous generation tasks against a model or workflow.
+
+Examples:
+  $ neotap model list --catalog image
+  $ neotap model list --search image --search sprites
+  $ neotap workflow get batch-generate-sprite-images
+  $ neotap task create batch-generate-sprite-images --input '{"model":"gpt-image-2","sprites":[...]}'
+  $ neotap task list --target batch-generate-sprite-images --status running
+`,
+  )
   .showHelpAfterError()
   .exitOverride()
 
 registerAuthCommand(program)
 registerModelCommand(program)
+registerWorkflowCommand(program)
 registerTaskCommand(program)
 
 async function main(): Promise<void> {

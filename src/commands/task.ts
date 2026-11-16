@@ -8,13 +8,15 @@ import type { CreateTaskResult, TaskDetail, TaskListResult } from "../lib/types.
 import { addCommonOptions } from "./options.js"
 
 type CreateOptions = CommonOptions & {
+  kind?: string
   input?: string
   inputFile?: string
   studioProjectId?: string
 }
 
 type ListOptions = CommonOptions & {
-  model?: string
+  target?: string
+  kind?: string
   status?: string[]
   apikeyId?: string
   studioProjectId?: string
@@ -27,7 +29,20 @@ type ListOptions = CommonOptions & {
 type GetOptions = CommonOptions
 
 export function registerTaskCommand(program: Command): void {
-  const task = program.command("task").description("Create and inspect NeoTap OpenAPI tasks")
+  const task = program
+    .command("task")
+    .description("Submit and track asynchronous generation tasks for models or workflows")
+    .addHelpText(
+      "after",
+      `
+Tasks run asynchronously against a model or workflow. Pass the target input with
+--input '<json>' or --input-file <path>. When --kind is omitted, the target is
+resolved as a model first, then as a workflow.
+Poll a task with "task get <task-id>", or filter with "task list --target <id>".
+
+Statuses: pending, running, succeeded, failed, canceled.
+`,
+    )
 
   registerCreate(task)
   registerList(task)
@@ -38,18 +53,20 @@ function registerCreate(task: Command): void {
   const command = addCommonOptions(
     task
       .command("create")
-      .description("Create a task for a model")
-      .argument("<model-id>", "model id, e.g. sprites-1")
-      .option("--input <json>", "task input as a JSON string")
-      .option("--input-file <path>", "read task input JSON from a file")
+      .description("Submit a task to a model or workflow; input comes from --input or --input-file")
+      .argument("<target-id>", "model or workflow id, e.g. batch-generate-sprite-images")
+      .option("--kind <kind>", "target kind: model or workflow (auto-detected when omitted)")
+      .option("--input <json>", "target input as a JSON string")
+      .option("--input-file <path>", "read target input JSON from a file")
       .option("--studio-project-id <id>", "optional studio project id for billing/audit"),
   )
 
-  command.action(async (modelId: string, options: CreateOptions, cmd: Command) => {
+  command.action(async (targetId: string, options: CreateOptions, cmd: Command) => {
     const merged = cmd.optsWithGlobals() as CreateOptions
-    if (!modelId) {
-      throw new UsageError("Missing required argument <model-id>.")
+    if (!targetId) {
+      throw new UsageError("Missing required argument <target-id>.")
     }
+    const targetKind = parseTargetKind(merged.kind)
     if ((merged.input && merged.inputFile) || (!merged.input && !merged.inputFile)) {
       throw new UsageError("Provide exactly one of --input <json> or --input-file <path>.")
     }
@@ -61,7 +78,8 @@ function registerCreate(task: Command): void {
     const context = await createContext(merged)
     const result = await apiClient(context).post<CreateTaskResult>("/openapi/tasks", {
       body: {
-        modelId,
+        targetId,
+        ...(targetKind ? { targetKind } : {}),
         input,
         ...(merged.studioProjectId ? { studioProjectId: merged.studioProjectId } : {}),
       },
@@ -71,7 +89,7 @@ function registerCreate(task: Command): void {
       printJson(result)
       return
     }
-    console.log(`Created task ${result.id} (${result.status}).`)
+    console.log(`Created ${result.targetKind} task ${result.id} for ${result.targetId} (${result.status}).`)
     console.log(`Poll status: neotap task get ${result.id}`)
   })
 }
@@ -82,8 +100,9 @@ function registerList(task: Command): void {
   const command = addCommonOptions(
     task
       .command("list")
-      .description("List OpenAPI tasks")
-      .option("--model <model-id>", "filter by model id")
+      .description("List your tasks with target, status and time filters (cursor pagination)")
+      .option("--target <target-id>", "filter by model or workflow id")
+      .option("--kind <kind>", "filter by target kind: model or workflow")
       .option("--status <status>", "filter by status (repeatable or comma-separated)", collect, [])
       .option("--apikey-id <id>", "filter by API key id")
       .option("--studio-project-id <id>", "filter by studio project id")
@@ -99,11 +118,13 @@ function registerList(task: Command): void {
       .flatMap((value) => value.split(","))
       .map((value) => value.trim())
       .filter(Boolean)
+    const targetKind = parseTargetKind(merged.kind)
 
     const context = await createContext(merged)
     const result = await apiClient(context).get<TaskListResult>("/openapi/tasks", {
       query: {
-        modelId: merged.model,
+        targetId: merged.target,
+        targetKind,
         status: statuses.length > 0 ? statuses : undefined,
         apiKeyId: merged.apikeyId,
         studioProjectId: merged.studioProjectId,
@@ -128,7 +149,10 @@ function registerList(task: Command): void {
 
 function registerGet(task: Command): void {
   const command = addCommonOptions(
-    task.command("get").description("Get a single OpenAPI task by id").argument("<task-id>", "task id"),
+    task
+      .command("get")
+      .description("Show one task's latest status, error and output")
+      .argument("<task-id>", "task id"),
   )
 
   command.action(async (taskId: string, options: GetOptions, cmd: Command) => {
@@ -145,6 +169,16 @@ function registerGet(task: Command): void {
     }
     printTask(result)
   })
+}
+
+function parseTargetKind(value: string | undefined): "model" | "workflow" | undefined {
+  if (!value) {
+    return undefined
+  }
+  if (value !== "model" && value !== "workflow") {
+    throw new UsageError(`Invalid --kind value: ${value}. Expected model or workflow.`)
+  }
+  return value
 }
 
 function parseJson(raw: string, source: string): unknown {

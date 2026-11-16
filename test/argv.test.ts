@@ -13,11 +13,11 @@ describe("normalizeArgv", () => {
   })
 
   it("leaves other arguments untouched", () => {
-    expect(normalizeArgv(["task", "submit", "--type", "sprites-1"])).toEqual([
+    expect(normalizeArgv(["task", "submit", "--type", "batch-generate-sprite-images"])).toEqual([
       "task",
       "submit",
       "--type",
-      "sprites-1",
+      "batch-generate-sprite-images",
     ])
   })
 })
