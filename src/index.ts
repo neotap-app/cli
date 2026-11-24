@@ -3,6 +3,7 @@
 import { Command, CommanderError } from "commander"
 import { registerAuthCommand } from "./commands/auth.js"
 import { registerContentCommand } from "./commands/content.js"
+import { registerInteractivePreviewCommand } from "./commands/interactive-preview.js"
 import { registerModelCommand } from "./commands/model.js"
 import { registerTaskCommand } from "./commands/task.js"
 import { registerWorkflowCommand } from "./commands/workflow.js"
@@ -28,6 +29,7 @@ Model, workflow and task commands:
   workflow   Discover multi-step generation workflows (list, get).
   task       Submit and track asynchronous generation tasks against a model or workflow.
   content    Create, upload and publish interactive or media content.
+  interactive  Manage Studio interactive previews.
 
 Examples:
   $ neotap model list --catalog image
@@ -42,6 +44,7 @@ Examples:
 
 registerAuthCommand(program)
 registerContentCommand(program)
+registerInteractivePreviewCommand(program)
 registerModelCommand(program)
 registerWorkflowCommand(program)
 registerTaskCommand(program)
