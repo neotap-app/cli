@@ -2,6 +2,7 @@
 
 import { Command, CommanderError } from "commander"
 import { registerAuthCommand } from "./commands/auth.js"
+import { registerContentCommand } from "./commands/content.js"
 import { registerModelCommand } from "./commands/model.js"
 import { registerTaskCommand } from "./commands/task.js"
 import { registerWorkflowCommand } from "./commands/workflow.js"
@@ -26,6 +27,7 @@ Model, workflow and task commands:
   model      Discover atomic generation models (list, get, catalog list).
   workflow   Discover multi-step generation workflows (list, get).
   task       Submit and track asynchronous generation tasks against a model or workflow.
+  content    Create, upload and publish interactive or media content.
 
 Examples:
   $ neotap model list --catalog image
@@ -39,6 +41,7 @@ Examples:
   .exitOverride()
 
 registerAuthCommand(program)
+registerContentCommand(program)
 registerModelCommand(program)
 registerWorkflowCommand(program)
 registerTaskCommand(program)
