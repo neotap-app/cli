@@ -17,7 +17,7 @@ NeoTap CLI: Terminal tool for [neotap.app](https://neotap.app) creators:
 
 - Find global trends and ideas with Neotap Trends (Comming soon)
 
-- Upload, analysis and manage your posts, videos and interactive games (Comming soon)
+- Upload, publish and manage your posts, videos and interactive games
 
 ## Commands
 
@@ -68,6 +68,62 @@ npx @neotap.app/cli task get <taskId>
 ```
 
 Task statuses: `pending`, `running`, `succeeded`, `failed`, `canceled`.
+
+### content
+
+Create, upload and publish media or interactive content.
+
+Interactive flow:
+
+```bash
+# 1. create an interactive content
+npx @neotap.app/cli content interactive create --title "My game"
+
+# 2. create a version (version name: 1 / 1.0 / 1.0.0)
+npx @neotap.app/cli content interactive version create <interactive-id> --version-name 1.0
+
+# 3. upload a zip (<= 32MB; index.html must be at the zip root)
+npx @neotap.app/cli content interactive upload <version-id> --file ./game.zip
+
+# 4. publish, deploy and wait for validation/review submission
+npx @neotap.app/cli content interactive publish <version-id> --wait
+
+# inspect
+npx @neotap.app/cli content interactive get <version-id>
+npx @neotap.app/cli content interactive list
+```
+
+Video flow:
+
+```bash
+# upload a video with multipart upload (mp4 / webm / mov / m4v, <= 120MB)
+npx @neotap.app/cli content video upload ./clip.mp4
+
+# publish a media post using the returned file id
+npx @neotap.app/cli content post publish --type media --media-file-id <file-id> --description "My clip"
+```
+
+Interactive posts:
+
+```bash
+npx @neotap.app/cli content post publish --type interactive --interactive-id <interactive-id>
+```
+
+Manage posts:
+
+```bash
+npx @neotap.app/cli content post list
+npx @neotap.app/cli content post get <post-id>
+npx @neotap.app/cli content post visibility <post-id> --visible false
+npx @neotap.app/cli content post delete <post-id>
+```
+
+Notes:
+
+- `content` commands use your saved API key. Run `neotap auth` first.
+- Interactive zip requirements: `index.html` at root, < 1MB; extracted size <= 32MB; <= 1000 files; common web/game asset extensions only.
+- Video duration is currently optional; it can be backfilled later.
+- Use `--json` for machine-readable output.
 
 Add `--json` to any command for machine-readable output.
 
