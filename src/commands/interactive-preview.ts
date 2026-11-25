@@ -29,21 +29,21 @@ type PreviewUploadItem = {
 }
 
 type StartUploadResult = {
-  previewId: string
+  previewId: number
   unchanged: boolean
   uploads: PreviewUploadItem[]
   expiresAt: string | null
 }
 
 type CompleteUploadResult = {
-  previewId: string
+  previewId: number
   status: string
   unchanged?: boolean
   workflowId: string | null
 }
 
 type PreviewStatusResult = {
-  previewId: string
+  previewId: number
   projectId: string
   status: string
   fileCount: number
@@ -183,7 +183,7 @@ async function uploadItems(
 
 async function startUpload(
   client: ApiClient,
-  previewId: string,
+  previewId: number,
   uploadRequestId: string,
   files: ScannedFile[],
 ): Promise<StartUploadResult> {
@@ -201,7 +201,7 @@ async function startUpload(
 
 async function uploadPreview(
   client: ApiClient,
-  previewId: string,
+  previewId: number,
   files: ScannedFile[],
   json: boolean,
 ): Promise<{ start: StartUploadResult; complete: CompleteUploadResult }> {
@@ -245,7 +245,7 @@ async function uploadPreview(
   return { start, complete }
 }
 
-async function getPreviewStatus(client: ApiClient, previewId: string) {
+async function getPreviewStatus(client: ApiClient, previewId: number) {
   return await client.post<PreviewStatusResult>(
     "/openapi/interactive-preview/get-status",
     { body: { previewId } },
@@ -258,7 +258,7 @@ function sleep(ms: number) {
 
 async function waitForPreviewStatus(
   client: ApiClient,
-  previewId: string,
+  previewId: number,
   json: boolean,
   timeoutMs = 10 * 60 * 1000,
 ): Promise<PreviewStatusResult | undefined> {
@@ -294,6 +294,14 @@ function printPreviewStatus(result: PreviewStatusResult): void {
   console.log(`Updated at: ${result.updatedAt}`)
 }
 
+function parsePreviewId(value: string): number {
+  const previewId = Number(value)
+  if (!Number.isSafeInteger(previewId) || previewId <= 0) {
+    throw new UsageError("preview id must be a positive snowflake id.")
+  }
+  return previewId
+}
+
 export function registerInteractivePreviewCommand(program: Command): void {
   const interactive = program
     .command("interactive")
@@ -322,15 +330,16 @@ export function registerInteractivePreviewCommand(program: Command): void {
       const merged = cmd.optsWithGlobals() as typeof options
       const context = await createContext(merged)
       const client = apiClient(context)
+      const previewId = parsePreviewId(merged.previewId)
       const projectDir = resolveProjectDir(context, merged.projectDir)
       const files = await scanProject(projectDir)
-      const result = await uploadPreview(client, merged.previewId, files, Boolean(merged.json))
+      const result = await uploadPreview(client, previewId, files, Boolean(merged.json))
 
       let status: PreviewStatusResult | undefined
       if (merged.wait && !result.start.unchanged) {
         status = await waitForPreviewStatus(
           client,
-          merged.previewId,
+          previewId,
           Boolean(merged.json),
         )
         if (!status) {
@@ -350,7 +359,7 @@ export function registerInteractivePreviewCommand(program: Command): void {
 
       if (merged.json) {
         printJson({
-          previewId: merged.previewId,
+          previewId,
           status: status?.status ?? result.complete.status,
           unchanged: result.start.unchanged || Boolean(result.complete.unchanged),
           previewStatus: status ?? null,
@@ -359,7 +368,7 @@ export function registerInteractivePreviewCommand(program: Command): void {
       }
 
       console.log(
-        `Preview ${merged.previewId}: ${result.start.unchanged || result.complete.unchanged
+        `Preview ${previewId}: ${result.start.unchanged || result.complete.unchanged
           ? "unchanged"
           : result.complete.status}`,
       )
@@ -386,11 +395,12 @@ export function registerInteractivePreviewCommand(program: Command): void {
       const merged = cmd.optsWithGlobals() as typeof options
       const context = await createContext(merged)
       const client = apiClient(context)
-      let result = await getPreviewStatus(client, merged.previewId)
+      const previewId = parsePreviewId(merged.previewId)
+      let result = await getPreviewStatus(client, previewId)
       if (merged.wait && !TERMINAL_PREVIEW_STATUSES.has(result.status)) {
         const waited = await waitForPreviewStatus(
           client,
-          merged.previewId,
+          previewId,
           Boolean(merged.json),
         )
         if (!waited) {

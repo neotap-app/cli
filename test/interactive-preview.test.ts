@@ -141,7 +141,7 @@ describe("interactive preview commands", () => {
       "preview",
       "upload",
       "--preview-id",
-      "11111111-1111-4111-8111-111111111111",
+      "111111111111111",
       "--project-dir",
       projectDir,
       "--wait",
@@ -152,7 +152,7 @@ describe("interactive preview commands", () => {
       (item) => item.path === "/openapi/interactive-preview/start-upload",
     )
     expect(start?.body).toMatchObject({
-      previewId: "11111111-1111-4111-8111-111111111111",
+      previewId: 111111111111111,
     })
     const files = start?.body.files as Array<[string, string, number]>
     expect(files.map(([filePath]) => filePath)).toEqual(["game.js", "index.html"])
@@ -165,7 +165,7 @@ describe("interactive preview commands", () => {
       (item) => item.path === "/openapi/interactive-preview/complete-upload",
     )
     expect(complete?.body).toEqual({
-      previewId: "11111111-1111-4111-8111-111111111111",
+      previewId: 111111111111111,
     })
     expect(
       received.some(
@@ -180,14 +180,14 @@ describe("interactive preview commands", () => {
       "preview",
       "status",
       "--preview-id",
-      "11111111-1111-4111-8111-111111111111",
+      "111111111111111",
       "--json",
     ])
     const status = received.find(
       (item) => item.path === "/openapi/interactive-preview/get-status",
     )
     expect(status?.body).toEqual({
-      previewId: "11111111-1111-4111-8111-111111111111",
+      previewId: 111111111111111,
     })
   })
 })
