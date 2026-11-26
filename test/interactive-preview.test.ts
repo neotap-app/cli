@@ -69,7 +69,7 @@ beforeAll(async () => {
         }),
       )
       ok({
-        previewId: body.previewId,
+        previewId: body.previewId ?? 222222222222222,
         unchanged: false,
         uploads: files,
         expiresAt: new Date(Date.now() + 900_000).toISOString(),
@@ -87,7 +87,7 @@ beforeAll(async () => {
     if (url.pathname === "/openapi/interactive-preview/get-status") {
       ok({
         previewId: body.previewId,
-        projectId: "22222222-2222-4222-8222-222222222222",
+        projectId: "333333333333333",
         status: "ready",
         fileCount: 2,
         totalSize: 31,
@@ -172,6 +172,29 @@ describe("interactive preview commands", () => {
         (item) => item.path === "/openapi/interactive-preview/get-status",
       ),
     ).toBe(true)
+  })
+
+  it("creates a preview when --preview-id is omitted", async () => {
+    await run([
+      "interactive",
+      "preview",
+      "upload",
+      "--project-dir",
+      projectDir,
+      "--json",
+    ])
+
+    const start = received.find(
+      (item) => item.path === "/openapi/interactive-preview/start-upload",
+    )
+    expect(start?.body).not.toHaveProperty("previewId")
+
+    const complete = received.find(
+      (item) => item.path === "/openapi/interactive-preview/complete-upload",
+    )
+    expect(complete?.body).toEqual({
+      previewId: 222222222222222,
+    })
   })
 
   it("gets preview upload status", async () => {

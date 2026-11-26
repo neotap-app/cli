@@ -183,7 +183,7 @@ async function uploadItems(
 
 async function startUpload(
   client: ApiClient,
-  previewId: number,
+  previewId: number | undefined,
   uploadRequestId: string,
   files: ScannedFile[],
 ): Promise<StartUploadResult> {
@@ -191,7 +191,7 @@ async function startUpload(
     "/openapi/interactive-preview/start-upload",
     {
       body: {
-        previewId,
+        ...(previewId === undefined ? {} : { previewId }),
         uploadRequestId,
         files: files.map((file) => file.tuple),
       },
@@ -201,14 +201,20 @@ async function startUpload(
 
 async function uploadPreview(
   client: ApiClient,
-  previewId: number,
+  previewId: number | undefined,
   files: ScannedFile[],
   json: boolean,
-): Promise<{ start: StartUploadResult; complete: CompleteUploadResult }> {
+): Promise<{
+  previewId: number
+  start: StartUploadResult
+  complete: CompleteUploadResult
+}> {
   const bySha = new Map(files.map((file) => [file.tuple[1], file]))
   const uploadRequestId = randomUUID()
 
-  let start = await startUpload(client, previewId, uploadRequestId, files)
+  let activePreviewId = previewId
+  let start = await startUpload(client, activePreviewId, uploadRequestId, files)
+  activePreviewId = start.previewId
   try {
     if (!json && start.uploads.length > 0) {
       process.stderr.write(`Uploading ${start.uploads.length} preview files...\n`)
@@ -218,7 +224,7 @@ async function uploadPreview(
     if (!json) {
       process.stderr.write("Upload failed; refreshing URLs and retrying...\n")
     }
-    start = await startUpload(client, previewId, uploadRequestId, files)
+    start = await startUpload(client, activePreviewId, uploadRequestId, files)
     await uploadItems(start.uploads, bySha)
   }
 
@@ -226,7 +232,7 @@ async function uploadPreview(
   try {
     complete = await client.post<CompleteUploadResult>(
       "/openapi/interactive-preview/complete-upload",
-      { body: { previewId } },
+      { body: { previewId: activePreviewId } },
     )
   } catch (error) {
     if (!(error instanceof CliError) || error.code !== "Preview.MissingBlobs") {
@@ -235,14 +241,14 @@ async function uploadPreview(
     if (!json) {
       process.stderr.write("Some blobs are missing; refreshing upload URLs...\n")
     }
-    start = await startUpload(client, previewId, uploadRequestId, files)
+    start = await startUpload(client, activePreviewId, uploadRequestId, files)
     await uploadItems(start.uploads, bySha)
     complete = await client.post<CompleteUploadResult>(
       "/openapi/interactive-preview/complete-upload",
-      { body: { previewId } },
+      { body: { previewId: activePreviewId } },
     )
   }
-  return { start, complete }
+  return { previewId: activePreviewId, start, complete }
 }
 
 async function getPreviewStatus(client: ApiClient, previewId: number) {
@@ -311,17 +317,31 @@ export function registerInteractivePreviewCommand(program: Command): void {
     .command("preview")
     .description("Upload and inspect Studio interactive previews")
 
-  addCommonOptions(
+  const uploadCommand = addCommonOptions(
     preview
       .command("upload")
-      .description("Scan a project directory, upload changed files and deploy a preview")
-      .requiredOption("--preview-id <id>", "preview id created by Studio updatePreview")
+      .description("Scan a project directory, upload changed files and deploy a Studio preview")
+      .option(
+        "--preview-id <id>",
+        "reuse an existing preview id (default: create a new preview)",
+      )
       .option("--project-dir <path>", "project directory (default: ~/project in sandbox)")
       .option("--wait", "wait until upload/deploy finishes"),
-  ).action(
+  )
+
+  uploadCommand.addHelpText(
+    "after",
+    [
+      "",
+      "Only the Studio sandbox API key (type studio-cli) can create or upload previews.",
+      "Running this command outside Studio, or with a user/CLI API key, is rejected by the server.",
+    ].join("\n"),
+  )
+
+  uploadCommand.action(
     async (
       options: CommonOptions & {
-        previewId: string
+        previewId?: string
         projectDir?: string
         wait?: boolean
       },
@@ -330,10 +350,18 @@ export function registerInteractivePreviewCommand(program: Command): void {
       const merged = cmd.optsWithGlobals() as typeof options
       const context = await createContext(merged)
       const client = apiClient(context)
-      const previewId = parsePreviewId(merged.previewId)
+      const requestedPreviewId = merged.previewId
+        ? parsePreviewId(merged.previewId)
+        : undefined
       const projectDir = resolveProjectDir(context, merged.projectDir)
       const files = await scanProject(projectDir)
-      const result = await uploadPreview(client, previewId, files, Boolean(merged.json))
+      const result = await uploadPreview(
+        client,
+        requestedPreviewId,
+        files,
+        Boolean(merged.json),
+      )
+      const previewId = result.previewId
 
       let status: PreviewStatusResult | undefined
       if (merged.wait && !result.start.unchanged) {

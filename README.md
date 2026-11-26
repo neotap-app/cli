@@ -127,14 +127,16 @@ Notes:
 
 ### interactive preview
 
-Studio preview workflow. Preview creation is internal to Studio (`updatePreview` tool); the CLI only uploads files to an existing preview and reads its status.
+Studio preview workflow. `upload` creates a new preview automatically (the Studio sandbox API key is bound to the project), uploads changed files and starts deployment. Pass `--preview-id` only to retry or continue an existing preview.
 
 ```bash
-# upload the current project to an existing preview
+# create a preview from the current project and wait for deployment
 npx @neotap.app/cli interactive preview upload \
-  --preview-id <preview-id> \
   --project-dir ~/project \
   --wait
+
+# retry an existing preview
+npx @neotap.app/cli interactive preview upload --preview-id <preview-id>
 
 # inspect upload / deploy status
 npx @neotap.app/cli interactive preview status --preview-id <preview-id>
@@ -142,9 +144,9 @@ npx @neotap.app/cli interactive preview status --preview-id <preview-id>
 
 `status` returns upload/deploy state, file count, total size, error and timestamps. It does not return a preview URL.
 
+- Preview create/upload is restricted to the Studio sandbox API key (`studio-cli`). Other API keys, including user and CLI-login keys, are rejected by the server.
 - Files are content-addressed; unchanged blobs are reused across previews.
 - The CLI scans `.`, skips hidden files, `.git` and `node_modules`, then validates `index.html`, file count and 32MB limit before uploading.
-- `--preview-id` must come from the Studio agent tool; there is no `create-preview` command.
 - If a newer preview supersedes the current one, the API returns `Preview.Superseded` and the upload stops.
 
 Add `--json` to any command for machine-readable output.
